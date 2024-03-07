@@ -1,3 +1,5 @@
+const slugify = require('slugify');
+// const validator = require('validator');
 const { model, Schema } = require('mongoose');
 
 const tourSchema = new Schema(
@@ -22,11 +24,17 @@ const tourSchema = new Schema(
     },
     difficulty: {
       type: String,
-      required: [true, 'A tour must have a difficulty']
+      required: [true, 'A tour must have a difficulty'],
+      enum: {
+        values: ['easy', 'medium', 'difficult'],
+        message: 'Difficulty is either: easy or medium or difficult'
+      }
     },
     ratingsAverage: {
       type: Number,
-      default: 4.5
+      default: 4.5,
+      min: [1, 'Rating must be above 1.0'],
+      max: [5, 'Rating must be below 5.0']
     },
     ratingsQuantity: {
       type: Number,
@@ -36,7 +44,16 @@ const tourSchema = new Schema(
       type: Number,
       required: [true, 'A tour must have a price']
     },
-    priceDiscount: Number,
+    priceDiscount: {
+      type: Number,
+      validate: {
+        validator: function(val) {
+          //this only points to current doc on NEW document creation
+          return val < this.price;
+        },
+        message: 'Discount price ({VALUE}) should be below regular price'
+      }
+    },
     summary: {
       type: String,
       trim: true,
@@ -53,14 +70,46 @@ const tourSchema = new Schema(
     images: [String],
     createdAt: {
       type: Date,
-      default: Date.now()
+      default: Date.now(),
+      selected: false
     },
-    startDates: [Date]
+    startDates: [Date],
+    secretTour: {
+      type: Boolean,
+      default: false
+    }
   },
   {
+    toJSON: {
+      virtuals: true
+    },
+    toObject: {
+      virtuals: true
+    },
     timestamps: true,
     collection: 'Tours'
   }
 );
+
+tourSchema.virtual('durationWeeks').get(function() {
+  return this.duration / 7;
+});
+
+tourSchema.pre('save', function(next) {
+  this.slug = slugify(this.name, { lower: true });
+  next();
+});
+
+// QUERY MIDDELWARE
+tourSchema.pre(/^find/, function(next) {
+  this.find({ secretTour: { $ne: true } });
+  next();
+});
+
+// AGGREGATION MIDDELWARE
+tourSchema.pre('aggregate', function(next) {
+  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
+  next();
+});
 
 module.exports = model('Tour', tourSchema);

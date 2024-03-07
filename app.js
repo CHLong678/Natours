@@ -6,6 +6,14 @@ const userRouter = require('./routes/userRoutes');
 
 const app = express();
 
+app.all('*', (req, res, next) => {
+  res.status(404).json({
+    status: 'Failed',
+    message: `Can't find ${req.originalUrl} on this server !`
+  });
+  next();
+});
+
 // 1) MIDDLEWARES
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -19,7 +27,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 3)
+// 3) ROUTES
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 
