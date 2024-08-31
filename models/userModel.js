@@ -41,7 +41,21 @@ const userSchema = new mongoose.Schema(
     },
     passwordChangedAt: Date,
     passwordResetToken: String,
-    passwordResetExpires: Date
+    passwordResetExpires: Date,
+    active: {
+      type: Boolean,
+      default: true,
+      select: false
+    },
+    refreshTokens: [
+      {
+        token: String,
+        expiresIn: {
+          type: Date,
+          default: Date.now() + process.env.REFRESH_EXPIRES_IN * 1
+        }
+      }
+    ]
   },
   {
     timestamps: true,
@@ -49,6 +63,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+//* Pre Middlewares ************************************************
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
 
@@ -77,6 +92,14 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
+userSchema.pre(/^find/, async function(next) {
+  this.find({ active: { $ne: false } });
+  next();
+});
+
+//* Instance Methods ***********************************************
+
+// Compare password
 userSchema.methods.correctPassword = async function(
   candidatePassword,
   userPassword
@@ -84,6 +107,7 @@ userSchema.methods.correctPassword = async function(
   return await bcrypt.compare(candidatePassword, userPassword);
 };
 
+// Check if password was changed after token was issued
 userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
