@@ -1,9 +1,9 @@
+const { model, Schema } = require('mongoose');
 const crypto = require('crypto');
-const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcrypt');
 
-const userSchema = new mongoose.Schema(
+const userSchema = new Schema(
   {
     name: {
       type: String,
@@ -58,6 +58,12 @@ const userSchema = new mongoose.Schema(
     ]
   },
   {
+    toJSON: {
+      virtuals: true
+    },
+    toObject: {
+      virtuals: true
+    },
     timestamps: true,
     collection: 'Users'
   }
@@ -133,6 +139,6 @@ userSchema.methods.createPasswordResetToken = function() {
   return resetToken;
 };
 
-const User = mongoose.model('User', userSchema);
+const User = model('User', userSchema);
 
 module.exports = User;
